@@ -9,63 +9,6 @@
 
 import { getProductionPlatformHostname, getStagingPlatformHostname } from '../brand';
 
-// Domain to app ID mapping
-export const domain_app_ids = {
-    'dtrader.deriv.com': 16929,
-    'staging-dtrader.deriv.com': 16303,
-    'localhost': 36300,
-};
-
-// Platform app IDs
-export const platform_app_ids = {
-    derivgo: 23789,
-};
-
-export const getCurrentProductionDomain = () =>
-    !/^staging\./.test(window.location.hostname) &&
-    Object.keys(domain_app_ids).find(domain => window.location.hostname === domain);
-
-export const isStaging = () => {
-    return /^staging/.test(window.location.hostname);
-};
-
-export const isBot = () => {
-    return false; // Simplified for this implementation
-};
-
-/**
- * Gets the app ID based on current domain and configuration
- */
-export const getAppId = () => {
-    let app_id = null;
-    const user_app_id = ''; // you can insert Application ID of your registered application here
-    const config_app_id = window.localStorage.getItem('config.app_id');
-    const current_domain = getCurrentProductionDomain() || '';
-    window.localStorage.removeItem('config.platform'); // Remove config stored in localstorage if there's any.
-    const platform = window.sessionStorage.getItem('config.platform');
-    const is_bot = isBot();
-
-    // Added platform at the top since this should take precedence over the config_app_id
-    if (platform && platform_app_ids[platform as keyof typeof platform_app_ids]) {
-        app_id = platform_app_ids[platform as keyof typeof platform_app_ids];
-    } else if (config_app_id) {
-        app_id = config_app_id;
-    } else if (user_app_id.length) {
-        window.localStorage.setItem('config.default_app_id', user_app_id);
-        app_id = user_app_id;
-    } else if (isStaging()) {
-        window.localStorage.removeItem('config.default_app_id');
-        app_id = is_bot ? 19112 : domain_app_ids[current_domain as keyof typeof domain_app_ids] || 16303;
-    } else if (/localhost/i.test(window.location.hostname)) {
-        app_id = 36300;
-    } else {
-        window.localStorage.removeItem('config.default_app_id');
-        app_id = is_bot ? 19111 : domain_app_ids[current_domain as keyof typeof domain_app_ids] || 16929;
-    }
-
-    return app_id;
-};
-
 export const isProduction = () => {
     const productionHostname = getProductionPlatformHostname();
     const stagingHostname = getStagingPlatformHostname();
@@ -116,12 +59,16 @@ export const getAccountType = (): string => {
 };
 
 export const getSocketURL = () => {
-    // 1. Check for manually configured server URL
     const local_storage_server_url = window.localStorage.getItem('config.server_url');
     if (local_storage_server_url) return local_storage_server_url;
 
-    // 2. Default to unified WebSocket URL
-    return 'ws.derivws.com';
+    // Get account type
+    const accountType = getAccountType();
+
+    // Map account type to new v2 endpoints
+    const server_url = accountType === 'real' ? 'realv2.derivws.com' : 'demov2.derivws.com';
+
+    return server_url;
 };
 
 export const getDebugServiceWorker = () => {
